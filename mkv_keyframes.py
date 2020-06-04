@@ -21,7 +21,7 @@ def get_mkv_keyframes(src, total_frames, cb=None):
     if len(line) == 0 and ffmpeg_pipe.poll() is not None:
       break
 
-    match = re.search(r"n:([0-9]+)\.[0-9]+ pts:.+key:1", line)
+    match = re.search(r"n:([0-9]+)\.[0-9]+ pts:.+key:1.+pict_type:I", line)
     if match:
       frame = int(match.group(1))
       mkv_keyframes.append(frame)
