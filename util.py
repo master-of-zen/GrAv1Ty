@@ -1,0 +1,32 @@
+import subprocess, re
+
+def get_frames(input, fast=True):
+  cmd = ["ffmpeg", "-hide_banner", "-i", input, "-map", "0:v:0"]
+  if fast:
+    cmd.extend(["-c", "copy",])
+  cmd.extend(["-f", "null", "-"])
+  r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  matches = re.findall(r"frame= *([^ ]+?) ", r.stderr.decode("utf-8") + r.stdout.decode("utf-8"))
+  return int(matches[-1])
+
+def ffmpeg(cmd, cb):
+  pipe = subprocess.Popen(cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    universal_newlines = True)
+
+  try:
+    while True:
+      line = pipe.stdout.readline().strip()
+
+      if len(line) == 0 and pipe.poll() is not None:
+        break
+
+      if not cb: continue
+      matches = re.findall(r"frame= *([^ ]+?) ", line)
+      if matches:
+        cb(int(matches[-1]))
+
+  except KeyboardInterrupt as e:
+    pipe.kill()
+    raise e
