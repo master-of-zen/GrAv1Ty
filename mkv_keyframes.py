@@ -4,10 +4,10 @@ def get_mkv_keyframes(src, total_frames, cb=None):
   ff = [
     "ffmpeg", "-hide_banner",
     "-i", src,
-    "-ss", "0",
     "-vf", "select=eq(pict_type\,PICT_TYPE_I)",
     "-f", "null",
-    "-loglevel", "debug", "-"]
+    "-loglevel", "debug", "-"
+  ]
 
   ffmpeg_pipe = subprocess.Popen(ff,
     stdout=subprocess.PIPE,
@@ -21,10 +21,11 @@ def get_mkv_keyframes(src, total_frames, cb=None):
     if len(line) == 0 and ffmpeg_pipe.poll() is not None:
       break
 
-    match = re.search(r"n:([0-9]+)\.[0-9]+ pts:.+pict_type:I", line)
+    match = re.search(r"n:([0-9]+)\.[0-9]+ pts:.+key:1", line)
     if match:
-      mkv_keyframes.append(int(match.group(1)))
+      frame = int(match.group(1))
+      mkv_keyframes.append(frame)
       if cb:
-        cb(int(match.group(1)))
+        cb(frame)
 
   return mkv_keyframes
