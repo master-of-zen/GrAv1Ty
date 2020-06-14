@@ -29,7 +29,7 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
 
   if min_frames != -1 and max_frames != -1:
     final_scenes = []
-    last_scene = 0
+    last_scene = aom_keyframes[skip_keyframes]
     previous_scene = aom_keyframes[skip_keyframes]
     for scene in aom_keyframes[skip_keyframes + 1:]:
       if scene - last_scene >= max_frames and previous_scene - last_scene > min_frames:
