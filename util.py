@@ -30,3 +30,7 @@ def ffmpeg(cmd, cb):
   except KeyboardInterrupt as e:
     pipe.kill()
     raise e
+
+def parse_time(search):
+  search = re.match(r"[\x20-\x7E]+", search).group()
+  return sum([float(t) * 60 ** i for i, t in enumerate(search.split(":")[::-1])])

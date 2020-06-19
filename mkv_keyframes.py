@@ -1,4 +1,5 @@
 import subprocess, re, enzyme
+from util import parse_time
 
 def get_child(parent, *args, is_list=False):
   args = list(args)
@@ -32,7 +33,7 @@ def get_mkv_keyframes_fast(src):
 
   timecode_scale = get_child(mkv[1], "Info", "TimecodeScale").data
 
-  for track in get_child(mkv[1], "Tracks"):
+  for track in [track for track in get_child(mkv[1], "Tracks") if track.name == "TrackEntry"]:
     track_type = get_child(track, "TrackType")
     if track_type.data == 1:
       track_number = get_child(track, "TrackNumber")
@@ -50,12 +51,17 @@ def get_mkv_keyframes_fast(src):
       else:
         return None, "Unable to parse track uid"
 
-  for tag in get_child(mkv[1], "Tags"):
-    if get_child(tag, "Targets", "TagTrackUID").data == track_uid:
+  for tag in [tag for tag in get_child(mkv[1], "Tags") if tag.name == "Tag"]:
+    targets = get_child(tag, "Targets")
+    if len(targets.data) == 0: continue
+    if get_child(targets, "TagTrackUID").data == track_uid:
       for simple_tag in get_child(tag, "SimpleTag", is_list=True):
+        if get_child(simple_tag, "TagName").data == "DURATION":
+          total_frames = round(timecode_scale / frame_duration * parse_time(get_child(simple_tag, "TagString").data) * 1000)
         if get_child(simple_tag, "TagName").data == "NUMBER_OF_FRAMES":
           total_frames = get_child(simple_tag, "TagString").data
           break
+      if total_frames: break
 
   if not total_frames:
     return None, "Unable to parse total frames"
@@ -66,7 +72,7 @@ def get_mkv_keyframes_fast(src):
   timestamps = []
   num_frames = 0
 
-  for e in cues:
+  for e in [cue for cue in cues if cue.name == "CuePoint"]:
     if e[1][0].data == track_number:
       timestamps.append(e[0].data)
 
