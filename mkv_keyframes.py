@@ -77,6 +77,7 @@ def get_mkv_keyframes_fast(src):
       timestamps.append(e[0].data)
 
   frames = [round(timecode_scale / frame_duration * t) for t in timestamps]
+  frames = [frame - frames[0] for frame in frames]
 
   return frames, int(total_frames)
 
