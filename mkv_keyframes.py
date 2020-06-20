@@ -1,5 +1,5 @@
 import subprocess, re, enzyme
-from util import parse_time
+from util import parse_time, get_frames
 
 def get_child(parent, *args, is_list=False):
   args = list(args)
@@ -18,6 +18,8 @@ def get_mkv_keyframes(src):
     print(total_frames, "falling back to ffmpeg")
     return get_mkv_keyframes_slow(src)
   else:
+    if not total_frames:
+      total_frames = get_frames(src)
     return frames, total_frames
 
 def get_mkv_keyframes_fast(src):
@@ -73,13 +75,10 @@ def get_mkv_keyframes_fast(src):
           break
       if total_frames: break
 
-  if not total_frames:
-    return None, "Unable to parse total frames"
-
   timestamps = [t - timestamps[0] for t in timestamps]
   frames = [round(timecode_scale / frame_duration * t) for t in timestamps]
 
-  return frames, int(total_frames)
+  return frames, int(total_frames) if total_frames else total_frames
 
 def get_mkv_keyframes_slow(src):
   ff = [
