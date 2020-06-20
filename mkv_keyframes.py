@@ -51,21 +51,6 @@ def get_mkv_keyframes_fast(src):
       else:
         return None, "Unable to parse track uid"
 
-  for tag in [tag for tag in get_child(mkv[1], "Tags") if tag.name == "Tag"]:
-    targets = get_child(tag, "Targets")
-    if len(targets.data) == 0: continue
-    if get_child(targets, "TagTrackUID").data == track_uid:
-      for simple_tag in get_child(tag, "SimpleTag", is_list=True):
-        if get_child(simple_tag, "TagName").data == "DURATION":
-          total_frames = round(timecode_scale / frame_duration * parse_time(get_child(simple_tag, "TagString").data) * 1000)
-        if get_child(simple_tag, "TagName").data == "NUMBER_OF_FRAMES":
-          total_frames = get_child(simple_tag, "TagString").data
-          break
-      if total_frames: break
-
-  if not total_frames:
-    return None, "Unable to parse total frames"
-
   cues = [e for e in mkv[1] if e.name == "Cues"]
   cues = cues[0] if cues else None
 
@@ -76,8 +61,23 @@ def get_mkv_keyframes_fast(src):
     if e[1][0].data == track_number:
       timestamps.append(e[0].data)
 
+  for tag in [tag for tag in get_child(mkv[1], "Tags") if tag.name == "Tag"]:
+    targets = get_child(tag, "Targets")
+    if len(targets.data) == 0: continue
+    if get_child(targets, "TagTrackUID").data == track_uid:
+      for simple_tag in get_child(tag, "SimpleTag", is_list=True):
+        if get_child(simple_tag, "TagName").data == "DURATION":
+          total_frames = round(timecode_scale / frame_duration * (parse_time(get_child(simple_tag, "TagString").data) * 1000 - timestamps[0]))
+        if get_child(simple_tag, "TagName").data == "NUMBER_OF_FRAMES":
+          total_frames = get_child(simple_tag, "TagString").data
+          break
+      if total_frames: break
+
+  if not total_frames:
+    return None, "Unable to parse total frames"
+
+  timestamps = [t - timestamps[0] for t in timestamps]
   frames = [round(timecode_scale / frame_duration * t) for t in timestamps]
-  frames = [frame - frames[0] for frame in frames]
 
   return frames, int(total_frames)
 
