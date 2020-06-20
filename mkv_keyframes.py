@@ -66,7 +66,9 @@ def get_mkv_keyframes_fast(src):
   for tag in [tag for tag in get_child(mkv[1], "Tags") if tag.name == "Tag"]:
     targets = get_child(tag, "Targets")
     if len(targets.data) == 0: continue
-    if get_child(targets, "TagTrackUID").data == track_uid:
+    track = get_child(targets, "TagTrackUID")
+    if not track: continue
+    if track.data == track_uid:
       for simple_tag in get_child(tag, "SimpleTag", is_list=True):
         if get_child(simple_tag, "TagName").data == "DURATION":
           total_frames = round(timecode_scale / frame_duration * (parse_time(get_child(simple_tag, "TagString").data) * 1000 - timestamps[0]))
