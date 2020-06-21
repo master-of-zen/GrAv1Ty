@@ -19,33 +19,39 @@ from aom_keyframes import get_aom_keyframes
 #     "length": 10
 #   }
 # }
-def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
+def split(video, path_split, min_frames=-1, cb=None):
+  print("getting mkv keyframes")
   mkv_keyframes, total_frames = get_mkv_keyframes(video)
-  mkv_keyframes.append(total_frames)
+  print("src", total_frames, "frames", len(mkv_keyframes), "keyframes")
   
   skip_keyframes = 0
-
   aom_keyframes = get_aom_keyframes(video)
+  print("aom", len(aom_keyframes), "keyframes")
 
-  if min_frames != -1 and max_frames != -1:
+  if min_frames != -1:
+    aom_keyframes.append(total_frames)
     final_scenes = []
-    last_scene = aom_keyframes[skip_keyframes]
-    previous_scene = aom_keyframes[skip_keyframes]
-    for scene in aom_keyframes[skip_keyframes + 1:]:
-      if scene - last_scene >= max_frames and previous_scene - last_scene > min_frames:
-        final_scenes.append(previous_scene)
-        last_scene = previous_scene
-      previous_scene = scene
-    aom_keyframes = aom_keyframes[:skip_keyframes + 1] + final_scenes
-  
-  aom_keyframes.append(total_frames)
-  
-  cmd = [
-    "ffmpeg", "-y",
-    "-i", video,
-    "-map", "0:v:0",
-    "-avoid_negative_ts", "1"
-  ]
+    aom_scenes = [(aom_keyframes[i], aom_keyframes[i + 1] - aom_keyframes[i]) for i in range(len(aom_keyframes) - 1)]
+    accumulate = 0
+    for i, scene in enumerate(aom_scenes[skip_keyframes:]):
+      scene = (scene[0] - accumulate, scene[1] + accumulate)
+      if scene[1] > min_frames or not len(final_scenes):
+        final_scenes.append(scene)
+        accumulate = 0
+      else:
+        prev_scene = final_scenes[-1]
+        if i < len(aom_scenes[skip_keyframes:]) - 1:
+          if prev_scene[1] < min_frames:
+            final_scenes[-1] = (prev_scene[0], prev_scene[1] + scene[1])
+          else:
+            next_scene = aom_scenes[skip_keyframes:][i + 1]
+            if next_scene[1] + scene[1] < prev_scene[1] + scene[1]:
+              accumulate = scene[1]
+            else:
+              final_scenes[-1] = (prev_scene[0], prev_scene[1] + scene[1])
+        else:
+          final_scenes[-1] = (prev_scene[0], prev_scene[1] + scene[1])
+    aom_keyframes = [s[0] for s in (aom_scenes[:skip_keyframes] + final_scenes)]
 
   frames, splits, segments = partition_with_mkv(aom_keyframes, mkv_keyframes, total_frames)
   reencode = False
@@ -56,9 +62,11 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
 
     print("keyframes unreliable, re-encoding")
 
+    aom_keyframes.append(total_frames)
+
     for i in range(len(aom_keyframes) - 1):
       frame = aom_keyframes[i]
-      next_frame = aom_keyframes[i+1]
+      next_frame = aom_keyframes[i + 1]
       segment_n = len(frames)
       length = next_frame - frame
       frames.append(frame)
@@ -75,25 +83,32 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
 
     reencode = True
 
-  frames = [str(f) for f in frames][1:]
-  print(frames)
+  frames = [str(f) for f in frames]
 
-  if reencode:
+  cmd = [
+    "ffmpeg", "-y",
+    "-hide_banner",
+    "-i", video,
+    "-map", "0:v:0",
+    "-avoid_negative_ts", "1",
+  ]
+
+  # this has a 50% chance of failing if the file is the product of a concat
+  # can be fixed be re-encoding the file whole beforehand
+  if reencode: 
     cmd.extend([
       "-c:v", "libx264",
+      "-x264-params", "scenecut=-1",
+      "-preset", "ultrafast",
       "-crf", "0",
-      "-x264-params", "scenecut=0",
       "-force_key_frames", "expr:" + "+".join([f"eq(n,{int(f)})" for f in frames])
     ])
-  else:
-    cmd.extend(["-c", "copy"])
 
   cmd.extend([
     "-f", "segment",
-    "-segment_frames", ",".join(frames)
+    "-segment_frames", ",".join(frames[1:]),
+    os.path.join(path_split, "%05d.mkv")
   ])
-
-  cmd.append(os.path.join(path_split, "%05d.mkv"))
 
   os.makedirs(path_split, exist_ok=True)
   ffmpeg(cmd, lambda x: cb(x, total_frames))
@@ -101,6 +116,9 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
   return splits, total_frames, segments
 
 def partition_with_mkv(aom_keyframes, mkv_keyframes, total_frames):
+  aom_keyframes = aom_keyframes + [total_frames]
+  mkv_keyframes = mkv_keyframes + [total_frames]
+
   splits = {}
   last_end = 0
   frames = []
@@ -182,7 +200,6 @@ if __name__ == "__main__":
   parser.add_argument("-o", dest="split_path", required=True)
   parser.add_argument("-s", "--splits", dest="splits", required=True)
   parser.add_argument("--min_frames", default=-1)
-  parser.add_argument("--max_frames", default=-1)
   
   args = parser.parse_args()
 
@@ -190,11 +207,9 @@ if __name__ == "__main__":
     args.input,
     args.split_path,
     min_frames=args.min_frames,
-    max_frames=args.max_frames,
-    cb=lambda x: print(f"{x}/{total_frames}", end="\r")
+    cb=lambda x, total_frames: print(f"{x}/{total_frames}", end="\r")
   )
 
-  print(total_frames, "frames")
   print("verifying split")
 
   verify_split(
