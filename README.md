@@ -54,7 +54,7 @@ Example program:
 
 Arguments:  
 Name | Required | Description
-- | - | -
+--- | --- | ---
 source | True | Source video file/directory
 encoded | True | Encoded video file/directory to compare
 --title | False | Title of the plot
