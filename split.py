@@ -1,5 +1,5 @@
-import os
-from util import get_frames, ffmpeg
+import os, shutil
+from util import get_frames, ffmpeg, ffmpeg_pipe
 from mkv_keyframes import get_mkv_keyframes
 from aom_keyframes import get_aom_keyframes
 
@@ -157,20 +157,46 @@ def partition_with_mkv(aom_keyframes, mkv_keyframes, total_frames):
 
   return frames, splits, segments
 
+def write_vs_script(src):
+  src = src.replace("\\","\\\\")
+  script = f"""from vapoursynth import core
+import mvsfunc as mvf
+src = core.ffms2.Source("{src}")
+mvf.Depth(src, 8).set_output()"""
+
+  open("vs.vpy", "w+").write(script)
+
 def correct_split(path_in, path_out, start, length):
-  cmd = [
-    "ffmpeg", "-hide_banner",
-    "-i", path_in,
-    "-map", "0:v:0",
-    "-c:v", "libx264",
-    "-crf", "0",
-    "-force_key_frames", f"expr:eq(n,{start})",
-    "-x264-params", "scenecut=0",
-    "-vf", f"select=gte(n\\,{start})",
-    "-frames:v", str(length),
-    "-y", path_out
-  ]
-  ffmpeg(cmd, lambda x: print(f"{x}/{length}", end="\r"))
+  if shutil.which("vspipe"):
+    write_vs_script(path_in)
+    vspipe_cmd = [
+      "vspipe", "vs.vpy",
+      "-s", str(start),
+      "-e", str(start + length - 1),
+      "-y", "-"
+    ]
+    ffmpeg_cmd = [
+      "ffmpeg", "-hide_banner",
+      "-i", "-",
+      "-c:v", "libx264",
+      "-crf", "0",
+      "-y", path_out
+    ]
+    ffmpeg_pipe(vspipe_cmd, ffmpeg_cmd, lambda x: print(f"{x}/{length}", end="\r"))
+  else:
+    cmd = [
+      "ffmpeg", "-hide_banner",
+      "-i", path_in,
+      "-map", "0:v:0",
+      "-c:v", "libx264",
+      "-crf", "0",
+      "-force_key_frames", f"expr:eq(n,{start})",
+      "-x264-params", "scenecut=0",
+      "-vf", f"select=gte(n\\,{start})",
+      "-frames:v", str(length),
+      "-y", path_out
+    ]
+    ffmpeg(cmd, lambda x: print(f"{x}/{length}", end="\r"))
 
 # input the source and segments produced by split()
 def verify_split(path_in, path_split, segments, cb=None):
@@ -210,6 +236,7 @@ if __name__ == "__main__":
     cb=lambda x, total_frames: print(f"{x}/{total_frames}", end="\r")
   )
 
+  print(total_frames, "frames")
   print("verifying split")
 
   verify_split(
