@@ -123,7 +123,7 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
   ])
 
   os.makedirs(path_split, exist_ok=True)
-  ffmpeg(cmd, lambda x: cb(f"{x}/{total_frames}"))
+  ffmpeg(cmd, lambda x: cb(f"{x}/{total_frames}", cr=True))
 
   return splits, total_frames, segments
 
@@ -226,7 +226,7 @@ def correct_split(path_in, path_out, start, length, cb=None):
       "-crf", "0",
       "-y", path_out
     ]
-    ffmpeg_pipe(vspipe_cmd, ffmpeg_cmd, lambda x: cb(f"{x}/{length}", True))
+    ffmpeg_pipe(vspipe_cmd, ffmpeg_cmd, lambda x: cb(f"{x}/{length}", cr=True))
   else:
     cmd = [
       "ffmpeg", "-hide_banner",
@@ -240,7 +240,7 @@ def correct_split(path_in, path_out, start, length, cb=None):
       "-frames:v", str(length),
       "-y", path_out
     ]
-    ffmpeg(cmd, lambda x: cb(f"{x}/{length}", True))
+    ffmpeg(cmd, lambda x: cb(f"{x}/{length}", cr=True))
 
 # input the source and segments produced by split()
 def verify_split(path_in, path_split, segments, cb=None):
