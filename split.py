@@ -23,7 +23,8 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
   if cb: cb("getting mkv keyframes")
   mkv_keyframes, total_frames = get_mkv_keyframes(video)
   if cb:
-    cb(f"total frames: {total_frames}\nsrc keyframes: {len(mkv_keyframes)}")
+    cb(f"total frames: {total_frames}")
+    cb(f"src keyframes: {len(mkv_keyframes)}")
   
   skip_keyframes = 0
   aom_keyframes = get_aom_keyframes(video)
@@ -123,7 +124,7 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
   ])
 
   os.makedirs(path_split, exist_ok=True)
-  ffmpeg(cmd, lambda x: cb(f"{x}/{total_frames}", cr=True))
+  ffmpeg(cmd, lambda x: cb(f"splitting {x}/{total_frames}", cr=True))
 
   return splits, total_frames, segments
 
@@ -226,7 +227,7 @@ def correct_split(path_in, path_out, start, length, cb=None):
       "-crf", "0",
       "-y", path_out
     ]
-    ffmpeg_pipe(vspipe_cmd, ffmpeg_cmd, lambda x: cb(f"{x}/{length}", cr=True))
+    ffmpeg_pipe(vspipe_cmd, ffmpeg_cmd, lambda x: cb(f"correcting split {x}/{length}", cr=True))
   else:
     cmd = [
       "ffmpeg", "-hide_banner",
@@ -240,24 +241,36 @@ def correct_split(path_in, path_out, start, length, cb=None):
       "-frames:v", str(length),
       "-y", path_out
     ]
-    ffmpeg(cmd, lambda x: cb(f"{x}/{length}", cr=True))
+    ffmpeg(cmd, lambda x: cb(f"correcting split {x}/{length}", cr=True))
 
 # input the source and segments produced by split()
 def verify_split(path_in, path_split, segments, cb=None):
+  total_frames = 0
   for i, segment in enumerate(segments, start=1):
     path_segment = os.path.join(path_split, segment)
     segment_n = str(os.path.splitext(segment)[0])
     num_frames = get_frames(path_segment)
 
-    if num_frames != segments[segment]["length"]:
+    if total_frames != segments[segment]["start"]:
+      cb(f"misalignment at {segment} expected: {segments[segment]['start']}, got: {total_frames}")
+      os.makedirs(os.path.join(path_split, "old"), exist_ok=True)
+      os.rename(path_segment, os.path.join(path_split, "old", segment))
+      correct_split(path_in, path_segment, segments[segment]["start"], segments[segment]["length"], lambda x, cr=False: cb(x, cr=cr))
+    elif num_frames != segments[segment]["length"]:
       cb(f"bad framecount {segment} expected: {segments[segment]['length']}, got: {num_frames}")
-      correct_split(path_in, path_segment, segments[segment]["start"], segments[segment]["length"])
+      os.makedirs(os.path.join(path_split, "old"), exist_ok=True)
+      os.rename(path_segment, os.path.join(path_split, "old", segment))
+      correct_split(path_in, path_segment, segments[segment]["start"], segments[segment]["length"], lambda x, cr=False: cb(x, cr=cr))
     else:
       num_frames_slow = get_frames(path_segment, False)
       if num_frames != num_frames_slow:
         cb(f"bad framecount {segment} expected: {num_frames}, got: {num_frames_slow}")
-        correct_split(path_in, path_segment, segments[segment]["start"], segments[segment]["length"])
+        os.makedirs(os.path.join(path_split, "old"), exist_ok=True)
+        os.rename(path_segment, os.path.join(path_split, "old", segment))
+        correct_split(path_in, path_segment, segments[segment]["start"], segments[segment]["length"], lambda x, cr=False: cb(x, cr=cr))
     
+    total_frames += num_frames
+
     if cb: cb(f"verifying splits: {i}/{len(segments)}", cr=True)
 
 # this is an example program
