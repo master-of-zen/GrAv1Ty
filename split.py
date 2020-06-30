@@ -239,6 +239,7 @@ def correct_split(path_in, path_out, start, length, cb=None):
       "-map", "0:v:0",
       "-c:v", "libx264",
       "-crf", "0",
+      "-vsync", "0",
       "-force_key_frames", f"expr:eq(n,{start})",
       "-x264-params", "scenecut=0",
       "-vf", f"select=gte(n\\,{start})",
