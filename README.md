@@ -4,6 +4,9 @@ please add more if you have any
 
 ## split
 This splits a video file into segments using mkv keyframes and aom keyframes.  
+Strategy:
+<img src="https://github.com/wwww-wwww/grav1ty/raw/master/images/split_strategy.png" width="600">
+
 `split(video, path_split, min_frames=-1, max_frames=-1, cb=None)`  
 returns: splits, total frames, segments  
 
