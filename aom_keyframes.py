@@ -101,15 +101,16 @@ def get_aom_keyframes(src):
     "-map", "0:v:0",
     "-strict", "-1",
     "-pix_fmt", "yuv420p",
+    "-vsync", "0",
     "-f", "yuv4mpegpipe", "-"]
 
   aom = ["aomenc", "-",
     "--ivf", f"--fpf=fpf.log",
     f"--threads=8", "--passes=2",
     "--pass=1", "--auto-alt-ref=1",
-    "--lag-in-frames=35",
+    "--lag-in-frames=25",
     "-o", os.devnull]
-
+  
   ffmpeg_pipe = subprocess.Popen(ffmpeg,
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT)

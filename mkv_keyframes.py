@@ -20,6 +20,7 @@ def get_mkv_keyframes(src):
   else:
     if not total_frames:
       total_frames = get_frames(src)
+
     return frames, total_frames
 
 def get_mkv_keyframes_fast(src):
@@ -89,6 +90,7 @@ def get_mkv_keyframes_slow(src):
     "-map", "0:v:0",
     "-vf", "select=eq(pict_type\,PICT_TYPE_I)",
     "-f", "null",
+    "-vsync", "0",
     "-loglevel", "debug", "-"
   ]
 

@@ -27,7 +27,7 @@ def split(video, path_split, min_frames=-1, max_frames=-1, cb=None):
     cb(f"src keyframes: {len(mkv_keyframes)}")
   
   skip_keyframes = 0
-  aom_keyframes = get_aom_keyframes(video)
+  aom_keyframes = get_aom_keyframes(video, lambda x: cb(f"getting aom keyframes: {x}/{total_frames}", cr=True))
   if cb:
     cb(f"aom keyframes: {len(aom_keyframes)}")
 
