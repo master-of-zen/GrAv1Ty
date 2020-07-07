@@ -93,7 +93,7 @@ def test_candidate_kf(dict_list, current_frame_index, frame_count_so_far):
       is_keyframe = 1
   return is_keyframe
 
-def get_aom_keyframes(src):
+def get_aom_keyframes(src, cb):
   ffmpeg = ["ffmpeg", "-y",
     "-hide_banner",
     "-loglevel", "error",
@@ -115,8 +115,21 @@ def get_aom_keyframes(src):
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT)
 
-  pipe = subprocess.run(aom,
-    stdin=ffmpeg_pipe.stdout)
+  pipe = subprocess.Popen(aom,
+    stdin=ffmpeg_pipe.stdout,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    universal_newlines=True)
+
+  while True:
+    line = pipe.stdout.readline().strip()
+
+    if len(line) == 0 and pipe.poll() is not None:
+      break
+
+    match = re.search(r"frame.*?\/([^ ]+?) ", line)
+    if match:
+      cb(int(match.group(1)))
 
   filename = "fpf.log"
 
