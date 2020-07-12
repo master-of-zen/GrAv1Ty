@@ -1,7 +1,17 @@
 import subprocess, re
 
-def get_frames(input, fast=True):
-  cmd = ["ffmpeg", "-hide_banner", "-i", input, "-map", "0:v:0"]
+vs_core = None
+
+try:
+  import vapoursynth
+  vs_core = vapoursynth.get_core()
+except: pass
+
+def get_frames(src, fast=True):
+  if vs_core:
+    return vs_core.ffms2.Source(src).num_frames
+
+  cmd = ["ffmpeg", "-hide_banner", "-i", src, "-map", "0:v:0"]
   if fast:
     cmd.extend(["-c", "copy",])
   cmd.extend(["-f", "null", "-"])
@@ -30,7 +40,7 @@ def ffmpeg(cmd, cb):
   except KeyboardInterrupt as e:
     pipe.kill()
     raise e
-
+  
 def ffmpeg_pipe(cmd1, cmd2, cb):
   pipe1 = subprocess.Popen(cmd1,
     stdout=subprocess.PIPE,
