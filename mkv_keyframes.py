@@ -73,8 +73,6 @@ def get_mkv_keyframes_fast(src):
       if not track: continue
       if track.data == track_uid:
         for simple_tag in get_child(tag, "SimpleTag", is_list=True):
-          if get_child(simple_tag, "TagName").data == "DURATION":
-            total_frames = round(timecode_scale / frame_duration * (parse_time(get_child(simple_tag, "TagString").data) * 1000 - timestamps[0]))
           if get_child(simple_tag, "TagName").data == "NUMBER_OF_FRAMES":
             total_frames = get_child(simple_tag, "TagString").data
             break
