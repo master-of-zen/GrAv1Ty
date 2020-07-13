@@ -42,12 +42,12 @@ def calculate(source, encoded, frames, vmaf, title, dpi, output, out_dir, open_i
   ffmpeg = ["ffmpeg",
     "-hide_banner",
     "-r", "24",
-    "-i", source,
-    "-r", "24",
     "-i", encoded,
+    "-r", "24",
+    "-i", source,
     "-map", "0:v:0",
     "-map", "1:v:0",
-    "-filter_complex", "[0:v][1:v]libvmaf=log_path=plot.xml" + f":model_path={vmaf}" if vmaf else "",
+    "-lavfi", "libvmaf=log_path=plot.xml" + f":model_path={vmaf}" if vmaf else "",
   ]
 
   if frames:
