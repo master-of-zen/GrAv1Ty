@@ -1,7 +1,7 @@
 import os, shutil
-from util import get_frames, ffmpeg, ffmpeg_pipe, vs_core
-from mkv_keyframes import get_mkv_keyframes
-from aom_keyframes import get_aom_keyframes
+from .util import get_frames, ffmpeg, ffmpeg_pipe, vs_core
+from .mkv_keyframes import get_mkv_keyframes
+from .aom_keyframes import get_aom_keyframes
 
 # returns splits, total frames, segments
 # splits are contained like so:

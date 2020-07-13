@@ -1,5 +1,5 @@
 import subprocess, re, enzyme
-from util import parse_time, get_frames, vs_core
+from .util import parse_time, get_frames, vs_core
 
 def get_child(parent, *args, is_list=False):
   args = list(args)
