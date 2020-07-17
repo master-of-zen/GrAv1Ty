@@ -8,7 +8,7 @@ try:
 except: pass
 
 def get_frames(src, fast=True):
-  if vs_core:
+  if fast and vs_core:
     return vs_core.ffms2.Source(src).num_frames
 
   cmd = ["ffmpeg", "-hide_banner", "-i", src, "-map", "0:v:0"]
