@@ -212,9 +212,7 @@ def partition_with_mkv(aom_keyframes, mkv_keyframes, total_frames):
 def write_vs_script(src):
   src = src.replace("\\","\\\\")
   script = f"""from vapoursynth import core
-import mvsfunc as mvf
-src = core.ffms2.Source("{src}")
-mvf.Depth(src, 8).set_output()"""
+core.ffms2.Source("{src}").set_output()"""
 
   open("vs.vpy", "w+").write(script)
 
