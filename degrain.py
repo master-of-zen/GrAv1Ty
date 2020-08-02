@@ -94,6 +94,15 @@ def denoise_directory(script, path_src, path_denoise):
     
     print(f"denoising {i}/{len(files)}", end="\r")
 
+class Counter:
+  def __init__(self, total):
+    self.n = 0
+    self.total = total
+  
+  def inc(self):
+    self.n += 1
+    print(f"generating grain {self.n}/{self.total}", end="\r")
+
 def generate_models(path_split, path_denoise, output, width, height, block_size=40, workers=6):
   os.makedirs(output, exist_ok=True)
 
@@ -112,16 +121,10 @@ def generate_models(path_split, path_denoise, output, width, height, block_size=
     queue.put((path, denoised, graintable))
   
   total = queue.qsize()
-  completed = 0
-
-  def on_complete():
-    completed += 1
-    print(f"generating grain {completed}/{total}", end="\r")
-    
-  on_complete()
+  c = Counter(total)
 
   for i in range(workers):
-    Thread(target=work, args=(i, queue, ffmpeg_queue, width, height, block_size, on_complete), daemon=True).start()
+    Thread(target=work, args=(i, queue, ffmpeg_queue, width, height, block_size, c.inc), daemon=True).start()
 
   Thread(target=ff_work, args=(ffmpeg_queue,), daemon=True).start()
 
@@ -192,6 +195,7 @@ class Degrain:
       if not "{}" in script:
         print("script requires {} to indicate input segment")
         exit(1)
+      print("using script", args.script)
     else:
       script = vpy
     
@@ -224,12 +228,12 @@ class Degrain:
     args = parser.parse_args(sys.argv[2:])
 
     generate_models(
-      args.clean,
+      args.source,
       args.denoise,
-      args.graintables,
+      args.output,
       int(args.width),
       int(args.height),
-      int(args.block_size),
+      int(args.blocksize),
       workers=int(args.workers)
     )
 
