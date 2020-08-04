@@ -11,7 +11,7 @@ import mvsfunc as mvf
 core = vs.get_core()
 core.max_cache_size = 100000
 
-src = core.ffms2.Source({})
+src = core.ffms2.Source("{}")
 
 y = mvf.BM3D(src, radius1=1, sigma=[12, 0, 0])
 knl = core.knlm.KNLMeansCL(src, a=2, h=1, d=3, device_type='gpu', device_id=0, channels='UV')
@@ -192,18 +192,23 @@ class Degrain:
         exit(1)
       
       script = open(args.script, "r").read()
-      if not "{}" in script:
-        print("script requires {} to indicate input segment")
+      match = re.search(r"ffms2.Source\((\".+\"|\'.+\')\)", script)
+      if match:
+        script = script.replace(match.group(1), "\"{}\"")
+
+      elif not "\"{}\"" in script:
+        print("script requires an ffms2 source or \"{}\" to indicate input segment")
         exit(1)
+
       print("using script", args.script)
     else:
       script = vpy
+      print("using default script")
     
     if not os.path.isdir(args.input):
       print(args.input, "can't be found")
       exit(1)
 
-    exit(0)
     denoise_directory(script, args.input, args.output)
   
   def generate(self):
