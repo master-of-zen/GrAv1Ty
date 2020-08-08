@@ -71,7 +71,7 @@ def create_log(source, encoded, frames, vmaf, extra_metrics=[], xml="plot.xml"):
     if len(line) == 0 and pipe.poll() is not None:
       break
 
-    match = re.search(r"frame= +?([0-9]+?) ", line)
+    match = re.search(r"frame= *?([0-9]+)", line)
     if match:
       frames = int(match.group(1))
       print(f"frame {frames}", end="\r")
@@ -191,6 +191,5 @@ if __name__ == "__main__":
     args.xml if args.xml else "plot.xml", args.output,
     #args.png, args.svg, args.csv,
     False, False, args.csv,
-    args.psnr, args.ssim, args.ms_ssim,
-    args.title, args.dpi
+    args.psnr, args.ssim, args.ms_ssim
   )
