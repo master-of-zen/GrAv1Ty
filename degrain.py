@@ -65,6 +65,7 @@ def denoise_directory(script, path_src, path_denoise):
 
   files = [file for file in os.listdir(path_src) if os.path.splitext(file)[1] in [".mkv", ".mp4"]]
   for i, file in enumerate(files, 1):
+    if os.path.isfile(os.path.join(path_denoise, file)): continue
     path = os.path.join(path_src, file)
 
     with open("tmp_grainremove.vpy", "w+") as f:
