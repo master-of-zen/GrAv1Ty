@@ -1,4 +1,4 @@
-import os, subprocess, io, re
+import os, subprocess, io, re, tempfile
 from threading import Thread, Event
 from queue import Queue
 
@@ -31,25 +31,48 @@ def ff_work(q):
     job[1].set()
     q.task_done()
 
-def work(id, q, f_q, width, height, block_size, on_complete):
+def work(id, q, f_q, noise_model, width, height, block_size, on_complete):
   e = Event()
+  
   while True:
     job = q.get()
     print("start", id, job[2])
 
-    cmds = [
-      ["ffmpeg", "-i", job[0], "-y", f"{id}_clean.yuv"],
-      ["ffmpeg", "-i", job[1], "-y", f"{id}_denoise.yuv"]
-    ]
+    if os.name == "nt":
+      clean = f"{id}_clean.yuv"
+      denoised = f"{id}_denoise.yuv"
+      cmds = [
+        ["ffmpeg", "-i", job[0], "-y", clean],
+        ["ffmpeg", "-i", job[1], "-y", denoised]
+      ]
 
-    e.clear()
-    f_q.put((cmds, e))
-    e.wait()
+      e.clear()
+      f_q.put((cmds, e))
+      e.wait()
+
+    else:
+      clean = os.path.join(tempfile.gettempdir(), f"pipe1_{id}.yuv")
+      denoised = os.path.join(tempfile.gettempdir(), f"pipe2_{id}.yuv")
+
+      if os.path.exists(clean):
+        os.unlink(clean)
+      if os.path.exists(denoised):
+        os.unlink(denoised)
+
+      os.mkfifo(clean)
+      os.mkfifo(denoised)
+
+      cmds = [
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", job[0], "-y", clean],
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", job[1], "-y", denoised]
+      ]
+
+      [subprocess.Popen(cmd) for cmd in cmds]
 
     noise_model = [
-      "noise_model",
-      f"--input={id}_clean.yuv",
-      f"--input-denoised={id}_denoise.yuv",
+      noise_model if noise_model else "noise_model",
+      f"--input={clean}",
+      f"--input-denoised={denoised}",
       f"--output-grain-table={job[2]}",
       f"--width={width}",
       f"--height={height}",
@@ -57,7 +80,12 @@ def work(id, q, f_q, width, height, block_size, on_complete):
     ]
 
     subprocess.run(noise_model, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    os.unlink(clean)
+    os.unlink(denoised)
+
     on_complete()
+
     q.task_done()
 
 def denoise_directory(script, path_src, path_denoise):
@@ -96,15 +124,15 @@ def denoise_directory(script, path_src, path_denoise):
     print(f"denoising {i}/{len(files)}", end="\r")
 
 class Counter:
-  def __init__(self, total):
+  def __init__(self, cb):
     self.n = 0
-    self.total = total
+    self.cb = cb
   
-  def inc(self):
-    self.n += 1
-    print(f"generating grain {self.n}/{self.total}", end="\r")
+  def inc(self, n=1):
+    self.n += n
+    self.cb(self.n)
 
-def generate_models(path_split, path_denoise, output, width, height, block_size=40, workers=6):
+def generate_models(noise_model, path_split, path_denoise, output, width, height, block_size=40, workers=6):
   os.makedirs(output, exist_ok=True)
 
   queue = Queue()
@@ -122,10 +150,11 @@ def generate_models(path_split, path_denoise, output, width, height, block_size=
     queue.put((path, denoised, graintable))
   
   total = queue.qsize()
-  c = Counter(total)
+
+  c = Counter(cb=lambda n: print(f"generating grain {n}/{total}", end="\r"))
 
   for i in range(workers):
-    Thread(target=work, args=(i, queue, ffmpeg_queue, width, height, block_size, c.inc), daemon=True).start()
+    Thread(target=work, args=(i, queue, ffmpeg_queue, noise_model, width, height, block_size, c.inc), daemon=True).start()
 
   Thread(target=ff_work, args=(ffmpeg_queue,), daemon=True).start()
 
@@ -213,10 +242,6 @@ class Degrain:
     denoise_directory(script, args.input, args.output)
   
   def generate(self):
-    if not shutil.which("noise_model"):
-      print("noise_model not found")
-      exit(1)
-
     parser = argparse.ArgumentParser(
       description="Generate grain tables from clean and denoised video",
       usage=f"{os.path.basename(__file__)} generate [-h] --width WIDTH --height HEIGHT [--blocksize BLOCKSIZE] [--workers WORKERS] source denoise output",
@@ -230,10 +255,16 @@ class Degrain:
     parser.add_argument("--height", required=True)
     parser.add_argument("--blocksize", default=40)
     parser.add_argument("--workers", help=f"default: logical cores / 2 : {round(os.cpu_count()/2)}", default=round(os.cpu_count()/2), required=False)
+    parser.add_argument("--noise_model", default=None, help="Location to noise_model example program")
 
     args = parser.parse_args(sys.argv[2:])
 
+    if not shutil.which("noise_model") and not args.noise_model:
+      print("noise_model not found")
+      exit(1)
+
     generate_models(
+      args.noise_model,
       args.source,
       args.denoise,
       args.output,
