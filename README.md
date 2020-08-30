@@ -2,6 +2,25 @@
 
 please add more if you have any
 
+## degrain
+Degrain videos and generate grain tables
+Example:  
+`python3 degrain.py degrain -s script.vpy split denoised`  
+`python3 degrain.py generate --width 1920 --height 1080 --workers 8 split denoised tables`  
+`python3 degrain.py scale -s 1.2 graintables new_graintables`  
+
+run `python3 degrain.py --help` for more
+
+## plot vmaf
+Plots vmaf of two video files  
+Example program:  
+`python3 plot_vmaf.py --xml plot.xml -o metrics.csv --psnr --ssim -ms_ssim`  
+`python3 plot_vmaf.py raw.mkv encoded.mkv --frames 10 -o metrics.csv`  
+`python3 plot_vmaf.py raw.mkv encoded.mkv -o image.png --csv --svg`  
+`python3 plot_vmaf.py raw.mkv encoded.mkv -o 01 --csv --png --svg`
+
+run `python3 plot_vmaf.py --help` for more
+
 ## split
 This splits a video file into segments using mkv keyframes and aom keyframes.  
 Strategy:  
@@ -51,22 +70,3 @@ returns: list of keyframes
 Uses ebml mkv header / ffmpeg to determine location of keyframes  
 `get_mkv_keyframes(video)`  
 returns: list of keyframes, total number of frames  
-
-## plot vmaf
-Plots vmaf of two video files  
-Example program:  
-`python3 plot_vmaf.py raw.mkv encoded.mkv --frames 10 --open`  
-`python3 plot_vmaf.py raw.mkv encoded.mkv --title "the encoded file" -o image.png --open`  
-`python3 plot_vmaf.py raws/ encoded/ --frames 10 -o vmafs`  
-
-Arguments:  
-Name | Required | Description
---- | --- | ---
-source | True | Source video file/directory
-encoded | True | Encoded video file/directory to compare
---title | False | Title of the plot
---frames | False | Number of frames to compare
---dpi | False | DPI of rendered plot
--o | False | Specified location to save the plots, defaults to encoded_name.png
---open | False | Open the plot in an image viewer right after completing analysis
---vmaf-model-path | False | Required if vmaf is in the path

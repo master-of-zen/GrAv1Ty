@@ -123,6 +123,30 @@ def denoise_directory(script, path_src, path_denoise):
     
     print(f"denoising {i}/{len(files)}", end="\r")
 
+def scale_noise_row(m, line, scale, skip):
+  match = re.match(f"\t{m} (.+)$", line)
+  if match:
+    params = match.group(1).split(" ")
+    params = [int(p) if len(p) > 0 else "" for p in params]
+    new_params = []
+    for i, p in enumerate(params):
+      if p == "" or i <= skip or (i + skip) % 2 == 0:
+        new_params.append(p)
+      else:
+        new_params.append(min(round(p*scale), 255))
+    params = [str(p) for p in new_params]
+    return f"\t{m} " + " ".join(params) + "\n"
+  return line
+
+def scale_noise_model(graintable, graintable_mod, scale):
+  with open(graintable) as f:
+    f2 = io.open(graintable_mod, "w+", newline="\n")
+    for line in f.readlines():
+      line = scale_noise_row("sY", line, scale, 2)
+      line = scale_noise_row("sCb", line, scale, 1)
+      line = scale_noise_row("sCr", line, scale, 1)
+      f2.writelines([line])
+
 class Counter:
   def __init__(self, cb):
     self.n = 0
@@ -188,7 +212,8 @@ class Degrain:
       usage=f"{os.path.basename(__file__)} <command> [<args>]\n"
       "commands:\n"
       "  degrain  \tDenoise a directory\n"
-      "  generate \tGenerate grain tables"
+      "  generate \tGenerate grain tables\n"
+      "  scale    \tScale grain tables"
     )
     parser.add_argument("command", help="Command to run")
 
@@ -273,6 +298,25 @@ class Degrain:
       int(args.blocksize),
       workers=int(args.workers)
     )
+
+  def scale(self):
+    parser = argparse.ArgumentParser(
+      description="Scale grain tables",
+      usage=f"{os.path.basename(__file__)} scale input output",
+      formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument("input", help="Input grain tables directory")
+    parser.add_argument("output", help="Output scaled grain tables directory")
+    parser.add_argument("-s", "--scale")
+
+    args = parser.parse_args(sys.argv[2:])
+
+    os.makedirs(out, exist_ok=True)
+    for file in os.listdir(args.input):
+      gt = os.path.join(args.input, file)
+      gt2 = os.path.join(args.output, file)
+      scale_noise_model(gt, gt2, float(args.scale))
 
 if __name__ == "__main__":
   import argparse, sys, shutil
